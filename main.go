@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 	"slices"
 )
 
@@ -24,33 +23,25 @@ func (e EkinState) ToString() string {
 	return fmt.Sprint(e)
 }
 
-type ReachedEkinState struct {
-	vec EkinState
-	id  string
-}
-
 func main() {
 	seen := make(map[int64][]EkinState)
-	currentStates := make([]*ReachedEkinState, 1)
-	currentStates[0] = &ReachedEkinState{
-		vec: EkinState{}, // zero filled ekin state
-		id:  uuid.NewString(),
+	currentStates := make([]EkinState, 1)
+	currentStates[0] = EkinState{}
+
+	addState := func(reached EkinState) {
+		hash := reached.Hash()
+		seen[hash] = append(seen[hash], reached)
 	}
 
-	addState := func(reached *ReachedEkinState) {
-		hash := reached.vec.Hash()
-		seen[hash] = append(seen[hash], reached.vec)
-	}
-
-	isSeen := func(state *ReachedEkinState) bool {
-		hash := state.vec.Hash()
+	isSeen := func(state EkinState) bool {
+		hash := state.Hash()
 		seenVecs, ok := seen[hash]
 		if !ok {
 			return false
 		}
 
 		for _, seenVec := range seenVecs {
-			if seenVec == state.vec {
+			if seenVec == state {
 				return true
 			}
 		}
@@ -60,85 +51,64 @@ func main() {
 
 	addState(currentStates[0])
 
-	prevStateLogger, err := NewCsvLogger(fmt.Sprintf("prev_state_%d.csv", n))
-	if err != nil {
-		panic(err)
-	}
-	defer prevStateLogger.Close()
-
-	prevStateLogger.MustLog([]string{"id", "vec", "previous"})
-	prevStateLogger.MustLog([]string{currentStates[0].id, currentStates[0].vec.ToString(), ""})
-
 	lastMax := 0
 
 	for i := 0; i < maxIterations; i++ {
 		//t := time.Now()
 
 		threadChan := make(chan int, maxThreads)
-		outChan := make(chan []*ReachedEkinState, len(currentStates))
+		outChan := make(chan []EkinState, len(currentStates))
 
 		for _, currentReached := range currentStates {
 			threadChan <- 1
-			go func(reached *ReachedEkinState) {
-				nextStates := make([]*ReachedEkinState, 0)
+			go func(reached EkinState) {
+				nextStates := make([]EkinState, 0)
 				for bitMask := 1; bitMask < (1 << n); bitMask++ {
 					sum := 0
 					for j := 0; j < n; j++ {
 						if bitMask&(1<<j) != 0 {
-							sum += reached.vec[j]
+							sum += reached[j]
 						}
 					}
 
 					if sum < 0 {
 						// next ekin state will add 1 from elements of the set
-						nextState := &ReachedEkinState{
-							vec: reached.vec,
-							id:  uuid.NewString(),
-						}
+						nextState := reached
 						for j := 0; j < n; j++ {
 							if bitMask&(1<<j) != 0 {
-								nextState.vec[j]++
+								nextState[j]++
 							}
 						}
-						slices.Sort(nextState.vec[:])
+						slices.Sort(nextState[:])
 
 						if !isSeen(nextState) {
 							nextStates = append(nextStates, nextState)
 						}
 					} else if sum > 0 {
 						// next ekin state will subtract 1 from elements of the set
-						nextState := &ReachedEkinState{
-							vec: reached.vec,
-							id:  uuid.NewString(),
-						}
+						nextState := reached
 						for j := 0; j < n; j++ {
 							if bitMask&(1<<j) != 0 {
-								nextState.vec[j]--
+								nextState[j]--
 							}
 						}
-						slices.Sort(nextState.vec[:])
+						slices.Sort(nextState[:])
 
 						if !isSeen(nextState) {
 							nextStates = append(nextStates, nextState)
 						}
 					} else {
 						// both operations are valid
-						nextState1 := &ReachedEkinState{
-							vec: reached.vec,
-							id:  uuid.NewString(),
-						}
-						nextState2 := &ReachedEkinState{
-							vec: reached.vec,
-							id:  uuid.NewString(),
-						}
+						nextState1 := reached
+						nextState2 := reached
 						for j := 0; j < n; j++ {
 							if bitMask&(1<<j) != 0 {
-								nextState1.vec[j]++
-								nextState2.vec[j]--
+								nextState1[j]++
+								nextState2[j]--
 							}
 						}
-						slices.Sort(nextState1.vec[:])
-						slices.Sort(nextState2.vec[:])
+						slices.Sort(nextState1[:])
+						slices.Sort(nextState2[:])
 
 						if !isSeen(nextState1) {
 							nextStates = append(nextStates, nextState1)
@@ -154,35 +124,40 @@ func main() {
 			threadChan <- 1
 		}
 
-		nextStates := make([]*ReachedEkinState, 0)
+		nextStates := make([]EkinState, 0)
 		for j := 0; j < len(currentStates); j++ {
 			nextStates = append(nextStates, <-outChan...)
 		}
 
 		// filter out duplicates
-		uniqueStates := make([]*ReachedEkinState, 0)
+		uniqueStates := make([]EkinState, 0)
 
 		for _, state := range nextStates {
 			if !isSeen(state) {
 				uniqueStates = append(uniqueStates, state)
 				addState(state)
+
+				invState := state
+				for j := 0; j < n; j++ {
+					invState[j] *= -1
+				}
+				slices.Sort(invState[:])
+				addState(invState)
 			}
 		}
 
-		nextStates = uniqueStates
+		//fmt.Println("Iteration", i, "took", time.Since(t)/time.Duration(len(currentStates)), "per state", len(currentStates), "states", ", seen size:", len(seen))
 
-		//fmt.Println("Iteration", i, "took", time.Since(t)/time.Duration(len(currentStates)), "per state", len(currentStates), "states")
-
-		if len(nextStates) == 0 {
+		if len(uniqueStates) == 0 {
 			break
 		}
 
 		//fmt.Println("Iteration", i, "Number of states", len(nextStates))
-		for _, state := range nextStates {
+		for _, state := range uniqueStates {
 			maxVal := 0
 			for j := 0; j < n; j++ {
-				if state.vec[j] > maxVal {
-					maxVal = state.vec[j]
+				if state[j] > maxVal {
+					maxVal = state[j]
 				}
 			}
 			if maxVal > lastMax {
@@ -191,7 +166,7 @@ func main() {
 			}
 		}
 
-		currentStates = nextStates
+		currentStates = uniqueStates
 
 		if i >= maxIterations-1 {
 			fmt.Println("Max iterations reached")
