@@ -1,20 +1,29 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"math"
 	"slices"
 )
 
-const n = 6
+const n = 4
 const maxIterations = 10000000
 const maxThreads = 8
 
-type EkinState [n]int
+type BaseInt int8
 
-func (e EkinState) Hash() int64 {
-	hash := int64(0)
+const baseIntMax = math.MaxInt8
+const baseIntMin = math.MinInt8
+
+type HashInt int32
+
+type EkinState [n]BaseInt
+
+func (e EkinState) Hash() HashInt {
+	hash := HashInt(0)
 	for i := 0; i < n; i++ {
-		hash = hash*31 + int64(e[i])
+		hash = hash*31 + HashInt(e[i])
 	}
 	return hash
 }
@@ -24,7 +33,7 @@ func (e EkinState) ToString() string {
 }
 
 func main() {
-	seen := make(map[int64][]EkinState)
+	seen := make(map[HashInt][]EkinState)
 	currentStates := make([]EkinState, 1)
 	currentStates[0] = EkinState{}
 
@@ -60,7 +69,7 @@ func main() {
 
 	logger.MustLog([]string{"new_max", "iterations"})
 
-	lastMax := 0
+	lastMax := BaseInt(0)
 
 	for i := 0; i < maxIterations; i++ {
 		//t := time.Now()
@@ -73,10 +82,10 @@ func main() {
 			go func(reached EkinState) {
 				nextStates := make([]EkinState, 0)
 				for bitMask := 1; bitMask < (1 << n); bitMask++ {
-					sum := 0
+					sum := int64(0)
 					for j := 0; j < n; j++ {
 						if bitMask&(1<<j) != 0 {
-							sum += reached[j]
+							sum += int64(reached[j])
 						}
 					}
 
@@ -154,6 +163,7 @@ func main() {
 					}
 					slices.Sort(invState[:])
 					addState(invState)
+					uniqueStates = append(uniqueStates, invState)
 				}
 			}
 		}
@@ -166,10 +176,14 @@ func main() {
 
 		//fmt.Println("Iteration", i, "Number of states", len(nextStates))
 		for _, state := range uniqueStates {
-			maxVal := 0
+			maxVal := BaseInt(0)
 			for j := 0; j < n; j++ {
 				if state[j] > maxVal {
 					maxVal = state[j]
+				}
+
+				if state[j] == baseIntMax || state[j] == baseIntMin {
+					panic(errors.New(fmt.Sprintf("base int overflow (reached %d)", state[j])))
 				}
 			}
 			if maxVal > lastMax {

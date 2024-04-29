@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 iteration_sizes = [4, 5, 6]
-diff_mode = False
+diff_mode = True
 
 for size in iteration_sizes:
     # Read csv file
