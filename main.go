@@ -51,6 +51,15 @@ func main() {
 
 	addState(currentStates[0])
 
+	logger, err := NewCsvLogger(fmt.Sprintf("size-%d-iterations.csv", n))
+	if err != nil {
+		panic(err)
+	}
+
+	defer logger.Close()
+
+	logger.MustLog([]string{"new_max", "iterations"})
+
 	lastMax := 0
 
 	for i := 0; i < maxIterations; i++ {
@@ -113,6 +122,10 @@ func main() {
 						if !isSeen(nextState1) {
 							nextStates = append(nextStates, nextState1)
 						}
+
+						if !isSeen(nextState2) {
+							nextStates = append(nextStates, nextState2)
+						}
 					}
 				}
 				outChan <- nextStates
@@ -124,25 +137,24 @@ func main() {
 			threadChan <- 1
 		}
 
-		nextStates := make([]EkinState, 0)
-		for j := 0; j < len(currentStates); j++ {
-			nextStates = append(nextStates, <-outChan...)
-		}
-
 		// filter out duplicates
 		uniqueStates := make([]EkinState, 0)
 
-		for _, state := range nextStates {
-			if !isSeen(state) {
-				uniqueStates = append(uniqueStates, state)
-				addState(state)
+		for j := 0; j < len(currentStates); j++ {
+			nextStates := <-outChan
 
-				invState := state
-				for j := 0; j < n; j++ {
-					invState[j] *= -1
+			for _, state := range nextStates {
+				if !isSeen(state) {
+					uniqueStates = append(uniqueStates, state)
+					addState(state)
+
+					invState := state
+					for j := 0; j < n; j++ {
+						invState[j] *= -1
+					}
+					slices.Sort(invState[:])
+					addState(invState)
 				}
-				slices.Sort(invState[:])
-				addState(invState)
 			}
 		}
 
@@ -163,6 +175,7 @@ func main() {
 			if maxVal > lastMax {
 				lastMax = maxVal
 				fmt.Println("New max", lastMax, "at iteration", i)
+				logger.MustLog([]string{fmt.Sprint(lastMax), fmt.Sprint(i)})
 			}
 		}
 

@@ -18,4 +18,4 @@ for size in iteration_sizes:
     plt.ylabel('iterations (diff)' if diff_mode else 'iterations')
     plt.title('Iterations{} vs new_max for size {}'.format(' diff' if diff_mode else '', size))
 
-plt.show()
+    plt.show()
