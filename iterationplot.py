@@ -1,14 +1,14 @@
-# read csv file with new_max,iterations
+# reads csv file with new_max,iterations
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
-iteration_sizes = [4, 5, 6]
-diff_mode = True
+iteration_sizes = [3, 4, 5, 6, 7]
+diff_mode = False
 
 for size in iteration_sizes:
     # Read csv file
-    df = pd.read_csv("size-{}-iterations.csv".format(size))
+    df = pd.read_csv("data/size-{}-iterations.csv".format(size))
     if diff_mode:
         df['iterations'] = df['iterations'] - df['iterations'].shift(1)
 

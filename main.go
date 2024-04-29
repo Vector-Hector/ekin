@@ -7,7 +7,7 @@ import (
 	"slices"
 )
 
-const n = 4
+const n = 3
 const maxIterations = 10000000
 const maxThreads = 8
 
@@ -60,7 +60,7 @@ func main() {
 
 	addState(currentStates[0])
 
-	logger, err := NewCsvLogger(fmt.Sprintf("size-%d-iterations.csv", n))
+	logger, err := NewCsvLogger(fmt.Sprintf("data/size-%d-iterations.csv", n))
 	if err != nil {
 		panic(err)
 	}
