@@ -7,8 +7,8 @@ You are given a vector of integers of a fixed size `n` that starts at only zeros
 integers
 and depending on the sum of this subset, you may increment or decrement the values of the subset by 1:
 
-- If the sum is smaller than zero, you may decrement all the values of the subset by 1.
-- If the sum is greater than zero, you may increment all the values of the subset by 1.
+- If the sum is smaller than zero, you increment all the values of the subset by 1.
+- If the sum is greater than zero, you decrement all the values of the subset by 1.
 - If the sum is zero, both operations are allowed.
 
 The question is: Is this vector bounded for all `n`?
