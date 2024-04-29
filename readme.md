@@ -11,7 +11,9 @@ and depending on the sum of this subset, you may increment or decrement the valu
 - If the sum is greater than zero, you decrement all the values of the subset by 1.
 - If the sum is zero, both operations are allowed.
 
-The question is: Is this vector bounded for all `n`?
+You may repeat this for a finite number of steps. (Choose new subset, calculate sum and apply an operation)
+
+The question is: Is the resulting vector bounded for all `n`?
 
 For small `n`, like `n=1` and `n=2` it is quite easy to see that they are bounded by `1` and `2` respectively. But for
 larger `n` it is not so easy to see. This tool is designed to analyze this problem for larger `n`.
